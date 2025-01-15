@@ -41,14 +41,14 @@ EnhancedPortfolioOptimizer
 
 // Core Data Structures
 struct PortfolioRisk {
-    double dailyVol;          // Daily volatility metric
-    double monthlyVol;        // Monthly volatility computation
-    double trackingError;     // Tracking error measurement
-    double informationRatio;  // Risk-adjusted return metric
-    double sharpeRatio;       // Risk-adjusted performance
-    double maxDrawdown;       // Maximum peak to trough decline
-    double beta;             // Systematic risk measure
-    double alpha;            // Excess return metric
+    double dailyVol;          
+    double monthlyVol;        
+    double trackingError;   
+    double informationRatio;  
+    double sharpeRatio;       
+    double maxDrawdown;       
+    double beta;             
+    double alpha;          
 };
 
 struct ConstraintLimits {
