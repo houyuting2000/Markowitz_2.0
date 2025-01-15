@@ -90,6 +90,7 @@ void exportResultsToCSV(const string& filename) {
 ## Component Integration
 
 ### 1. Data Flow Through weight.cpp
+```
 Input Processing
 └── loadData()
     ├── Parser portfolio(filename)
@@ -108,8 +109,9 @@ Output Generation
     ├── generateRiskReport()
     ├── exportResultsToCSV()
     └── console output
-
+```
 ### 2. Risk Management Integration
+```
 RiskMetrics Integration
 ├── Risk Calculation
 │   ├── Daily volatility
@@ -119,14 +121,15 @@ RiskMetrics Integration
     ├── Position limits
     ├── Sector exposure
     └── Turnover control
-
+```
 ### 3. Transaction Cost Integration
+```
 Cost Model Implementation
 ├── Fixed costs
 ├── Variable costs
 ├── Market impact
 └── Optimization adjustment
-
+```
 ## Technical Specifications
 
 ### Core Functionality
