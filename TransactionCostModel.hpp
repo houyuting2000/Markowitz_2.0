@@ -13,25 +13,36 @@ public:
         double marketImpact{0.0};         // Market impact parameter
     };
 
-    // Constructor with default values
+    // Constructors
     TransactionCostModel(int daysToExecute = 1, double decayRate = 0.1) 
         : daysToExecute_(daysToExecute)
         , decayRate_(decayRate) {}
 
-    // Main cost calculation method
+    // Main cost calculation methods
     double calculateTotalCost(const Matrix& currentWeights,
                             const Matrix& targetWeights,
                             const Matrix& prices,
                             double portfolioValue);
 
+    // New helper method for rebalancing
+    double estimateRebalancingCosts(const Matrix& oldWeights, 
+                                   const Matrix& newWeights,
+                                   double portfolioValue);
+
     // Market data update methods
     void updateMarketData(const std::vector<double>& newVolumes,
                          const std::vector<double>& newPrices);
 
-    // Setters
-    void setCosts(const Costs& costs);
+    // Setters and getters
+    void setCosts(const Costs& costs) { costs_ = costs; }
+    const Costs& getCosts() const { return costs_; }
     void setDaysToExecute(int days) { daysToExecute_ = days; }
     void setDecayRate(double rate) { decayRate_ = rate; }
+    
+    // New methods for cost analysis
+    double calculateTurnover(const Matrix& oldWeights, const Matrix& newWeights);
+    double estimateMarketImpact(double tradeSize, double avgVolume);
+    double estimateSlippage(double tradeSize, double avgVolume);
 
 private:
     // Member variables
@@ -45,6 +56,4 @@ private:
     double calculateMarketImpactDecay(double tradeSize, 
                                     double avgVolume, 
                                     int daysToExecute);
-    double estimateSlippage(double tradeSize, double avgVolume);
-    double estimateMarketImpact(double tradeSize, double avgVolume);
 };

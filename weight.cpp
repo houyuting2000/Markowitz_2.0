@@ -2,6 +2,7 @@
 #include "RiskReporter.hpp"
 #include "StressTesting.hpp"
 #include "TransactionCostModel.hpp"
+#include "PortfolioRebalancer.hpp"
 #include "CSVParser.hpp"
 #include <iostream>
 #include <fstream>
@@ -33,6 +34,8 @@ private:
     Matrix mptWeights_;
     Real benchmarkReturn_;
     vector<tuple<Real, Real, Real>> efficientFrontierPoints_;
+    vector<string> dates_;
+    int windowSize_;
 
     // Performance metrics
     Real dailyReturn_;
@@ -40,6 +43,9 @@ private:
     Real dailyVol_;
     Real monthlyVol_;
     Real trackingError_;
+
+    // Transaction cost model
+    TransactionCostModel costModel_;
 
     // Helper methods
     Matrix calculateMarkowitzWeights(const Matrix& mu, const Matrix& sigma, 
@@ -62,19 +68,51 @@ private:
     }
 
     void calculatePerformanceMetrics() {
-        // Calculate daily metrics
         dailyReturn_ = (transpose(teWeights_)*returns_)[0][0];
         dailyVol_ = sqrt((transpose(teWeights_)*covariance_*teWeights_)[0][0]);
         trackingError_ = sqrt((transpose(teWeights_)*excessCovariance_*teWeights_)[0][0]);
-        
-        // Calculate monthly metrics
         monthlyReturn_ = pow(1 + dailyReturn_, TRADING_DAYS_PER_MONTH) - 1;
         monthlyVol_ = dailyVol_ * sqrt(TRADING_DAYS_PER_MONTH);
     }
 
+    vector<string> extractDates(const string& filename) {
+        Parser portfolio(filename);
+        vector<string> dates;
+        for (int i = 0; i < NUM_PERIODS; i++) {
+            dates.push_back(portfolio[i][DATE_COLUMN]);
+        }
+        return dates;
+    }
+
+    void updateCovariances(const Matrix& windowReturns, 
+                         const Matrix& windowExcessReturns) {
+        SequenceStatistics ss, ssd;
+        for (int i = 0; i < windowReturns.rows(); i++) {
+            vector<Real> dailyReturns, excessReturns;
+            for (int j = 0; j < NUM_ASSETS; j++) {
+                dailyReturns.push_back(windowReturns[i][j]);
+                excessReturns.push_back(windowExcessReturns[i][j]);
+            }
+            ss.add(dailyReturns);
+            ssd.add(excessReturns);
+        }
+        covariance_ = ss.covariance();
+        excessCovariance_ = ssd.covariance();
+    }
+
 public:
-    EnhancedPortfolioOptimizer(const string& dataFile) {
-        loadData(dataFile);
+    EnhancedPortfolioOptimizer(const string& filename, int windowSize = 252) 
+        : windowSize_(windowSize) {
+        loadData(filename);
+        dates_ = extractDates(filename);
+        
+        // Initialize transaction cost model
+        TransactionCostModel::Costs costs;
+        costs.fixedCommission = 0.0001;     // 1 bp per trade
+        costs.variableCommission = 0.0005;   // 5 bps
+        costs.marketImpact = 0.1;           // Market impact coefficient
+        costs.slippage = 0.0002;           // 2 bps average slippage
+        costModel_.setCosts(costs);
     }
     
     void loadData(const string& filename) {
@@ -97,26 +135,31 @@ public:
             }
             benchmarkReturn_ /= NUM_PERIODS;
             
-            // Calculate covariance matrices
-            SequenceStatistics ss, ssd;
-            for (int i = 0; i < NUM_PERIODS; i++) {
-                vector<Real> dailyReturns, excessReturns;
-                for (int j = 0; j < NUM_ASSETS; j++) {
-                    dailyReturns.push_back(returns_[i][j]);
-                    excessReturns.push_back(excessReturns_[i][j]);
-                }
-                ss.add(dailyReturns);
-                ssd.add(excessReturns);
-            }
-            covariance_ = ss.covariance();
-            excessCovariance_ = ssd.covariance();
+            // Calculate initial covariance matrices
+            updateCovariances(returns_, excessReturns_);
             
         } catch (const exception& e) {
             throw runtime_error("Error loading data: " + string(e.what()));
         }
     }
 
-    void optimizePortfolio() {
+    void optimizePortfolio(int currentPeriod = -1) {
+        if (currentPeriod >= 0) {
+            // Calculate start and end indices for rolling window
+            int startIdx = max(0, currentPeriod * TRADING_DAYS_PER_MONTH - windowSize_);
+            int endIdx = min(NUM_PERIODS, 
+                           currentPeriod * TRADING_DAYS_PER_MONTH);
+            
+            // Extract data for current window
+            Matrix windowReturns = returns_.block(startIdx, 0, 
+                                                endIdx - startIdx, NUM_ASSETS);
+            Matrix windowExcessReturns = excessReturns_.block(startIdx, 0, 
+                                                             endIdx - startIdx, NUM_ASSETS);
+            
+            // Update covariances for current window
+            updateCovariances(windowReturns, windowExcessReturns);
+        }
+
         // Initialize parameters
         Real targetReturn = 0.0013;  // Target daily return
         Matrix u(NUM_ASSETS, 1, 1.0);  // Unit vector
@@ -168,7 +211,7 @@ public:
         }
     }
 
-    void writeResults(const string& filename = "portfolio_analysis.csv") {
+    void writeResults(const string& filename) {
         ofstream file(filename);
         if (!file.is_open()) {
             throw runtime_error("Unable to open output file: " + filename);
@@ -208,44 +251,70 @@ public:
         file.close();
     }
 
-    // Getters for stress testing and risk reporting
+    // Getters for rebalancer and risk analysis
     Matrix getReturns() const { return returns_; }
     Matrix getOptimalWeights() const { return teWeights_; }
     Matrix getCovariance() const { return covariance_; }
     Real getTrackingError() const { return trackingError_; }
+    const vector<string>& getDates() const { return dates_; }
+    void setRollingWindow(int windowSize) { windowSize_ = windowSize; }
+    TransactionCostModel& getCostModel() { return costModel_; }
+    Real getExpectedExcessReturn() const { return dailyReturn_ - benchmarkReturn_; }
 };
 
 int main() {
     try {
         cout << "Starting portfolio optimization..." << endl;
 
-        // 1. Initialize and run core optimization
-        EnhancedPortfolioOptimizer optimizer("12-stock portfolio.csv");
+        // 1. Initialize optimizer with 1-year rolling window
+        EnhancedPortfolioOptimizer optimizer("12-stock portfolio.csv", 252);
+        
+        // 2. Set up rebalancer
+        PortfolioRebalancer rebalancer(optimizer);
+        
+        // 3. Initial optimization
+        optimizer.optimizePortfolio(0);
+        rebalancer.initialize(optimizer.getOptimalWeights());
+        
+        // 4. Run monthly rebalancing
+        const vector<string>& dates = optimizer.getDates();
+        for (size_t i = 0; i < dates.size(); ++i) {
+            // Perform rebalancing check and execution
+            rebalancer.rebalance(dates[i]);
+            
+            // Generate periodic reports on month-end dates
+            if (rebalancer.isRebalancingDate(dates[i])) {
+                // Store original results
+                optimizer.writeResults("portfolio_" + dates[i] + ".csv");
+                
+                // Run stress tests
+                cout << "Performing stress tests for " << dates[i] << "..." << endl;
+                StressTesting::Scenario scenario;
+                scenario.name = "Market Stress - " + dates[i];
+                scenario.marketShocks = vector<double>(12, -0.10);
+                
+                StressTesting stressTester(optimizer.getReturns());
+                auto stressResults = stressTester.runStressTest(
+                    rebalancer.getCurrentWeights(), scenario);
+                
+                // Generate risk report
+                cout << "Generating risk report for " << dates[i] << "..." << endl;
+                RiskReporter::generateDetailedReport(
+                    "risk_report_" + dates[i] + ".txt",
+                    rebalancer.getCurrentWeights(),
+                    optimizer.getReturns(),
+                    optimizer.getCovariance()
+                );
+            }
+        }
+        
+        // 5. Final optimization and reporting
         optimizer.optimizePortfolio();
-        optimizer.writeResults("portfolio_analysis.csv");
+        optimizer.writeResults("final_portfolio_analysis.csv");
         
-        // 2. Add stress testing
-        cout << "Performing stress tests..." << endl;
-        StressTesting::Scenario scenario;
-        scenario.name = "Market Stress";
-        scenario.marketShocks = vector<double>(12, -0.10);  // 10% market decline
-        
-        StressTesting stressTester(optimizer.getReturns());
-        auto stressResults = stressTester.runStressTest(
-            optimizer.getOptimalWeights(), scenario);
-        
-        // 3. Generate risk report
-        cout << "Generating risk report..." << endl;
-        RiskReporter::generateDetailedReport(
-            "risk_report.txt",
-            optimizer.getOptimalWeights(),
-            optimizer.getReturns(),
-            optimizer.getCovariance()
-        );
-        
-        cout << "Optimization completed successfully." << endl;
-        cout << "Results written to portfolio_analysis.csv" << endl;
-        cout << "Risk report written to risk_report.txt" << endl;
+        cout << "Portfolio optimization with monthly rebalancing completed successfully." << endl;
+        cout << "Results written to portfolio_*.csv files" << endl;
+        cout << "Risk reports written to risk_report_*.txt files" << endl;
         
         return 0;
     }
