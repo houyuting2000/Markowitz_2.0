@@ -34,7 +34,7 @@ Data Frequency: Daily returns
 - [x] Performance Analysis
 
 ### Data Processing
-[CSV Input] --> [Data Loading] --> [Returns Processing] --> [Covariance Calculation] --> [Optimization] --> [Output Generation]
+CSV Input --> Data Loading --> Returns Processing --> Covariance Calculation --> Optimization --> Output Generation
 
 ## Architecture
 
