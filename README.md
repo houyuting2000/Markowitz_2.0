@@ -1,36 +1,119 @@
 # Portfolio Optimization with Tracking Error and Monthly Rebalancing
 
-## Overview
-This project implements a sophisticated portfolio optimization strategy that combines tracking error minimization with monthly rebalancing and transaction cost considerations. The implementation uses C++ with QuantLib integration for robust financial calculations.
+## Project Overview
+This project implements a sophisticated portfolio optimization strategy that combines tracking error minimization with systematic monthly rebalancing. Built in C++ with QuantLib integration, it provides a robust framework for institutional-grade portfolio management.
 
-## Features
-- **Tracking Error Optimization**: Minimizes portfolio deviation from benchmark (SPY)
-- **Monthly Rebalancing**: Systematic portfolio rebalancing with transaction cost considerations
-- **Transaction Cost Model**: Includes:
-  - Fixed commission costs
-  - Variable commission rates
-  - Market impact modeling
-  - Slippage estimation
-- **Risk Analysis**: Comprehensive risk metrics and stress testing
-- **Performance Reporting**: Detailed performance analytics and reporting
+## Architecture
 
-## Project Structure
+### Core Components
 ```
 Tracking-Error-and-Portfolio-Optimization-master/
 ├── src/
-│   ├── PortfolioOptimizer.hpp
-│   ├── PortfolioOptimizer.cpp
-│   ├── PortfolioRebalancer.hpp
-│   ├── PortfolioRebalancer.cpp
-│   ├── TransactionCostModel.hpp
-│   ├── TransactionCostModel.cpp
-│   ├── StressTesting.hpp
-│   ├── RiskReporter.hpp
-│   └── weight.cpp
+│   ├── PortfolioOptimizer.hpp/cpp     # Core optimization engine
+│   ├── PortfolioRebalancer.hpp/cpp    # Rebalancing logic
+│   ├── TransactionCostModel.hpp/cpp   # Transaction cost analysis
+│   ├── StressTesting.hpp             # Risk scenario analysis
+│   ├── RiskReporter.hpp              # Performance reporting
+│   └── weight.cpp                    # Main execution file
 ├── data/
-│   └── 12-stock portfolio.csv
+│   └── 12-stock portfolio.csv        # Historical price data
 └── README.md
 ```
+
+### Component Interactions
+1. **PortfolioOptimizer**
+   - Implements tracking error minimization
+   - Calculates efficient frontier
+   - Manages rolling window calculations
+   - Interfaces with QuantLib for matrix operations
+
+2. **PortfolioRebalancer**
+   - Handles monthly rebalancing decisions
+   - Integrates with TransactionCostModel
+   - Maintains position tracking
+   - Implements rebalancing thresholds
+
+3. **TransactionCostModel**
+   - Models trading costs with multiple components:
+     ```cpp
+     struct Costs {
+         double fixedCommission;      // Fixed fee per trade
+         double variableCommission;   // Percentage-based fee
+         double slippageModel;        // Price impact
+         double marketImpact;         // Market depth impact
+     };
+     ```
+
+## Data Structure
+
+### Input Data Format
+The system uses a CSV file with the following structure:
+```csv
+Dates,MSFT,F,BGS,ADRD,V,MGI,NFLX,JACK,GE,SBUX,C,HD,SPY
+6/29/2018,-0.000202,-0.018617,...,0.005717
+```
+- First column: Trading dates
+- Columns 2-13: Daily returns for 12 stocks
+- Last column: SPY (benchmark) returns
+
+### Key Data Processing
+1. **Return Calculations**
+   - Daily returns processing
+   - Rolling window statistics
+   - Excess return computation
+
+2. **Covariance Estimation**
+   - Rolling covariance matrix
+   - Exponential weighting
+   - Regularization techniques
+
+## Optimization Process
+
+### 1. Initial Portfolio Construction
+```cpp
+class PortfolioOptimizer {
+    Matrix calculateMarkowitzWeights(
+        const Matrix& mu,          // Expected returns
+        const Matrix& sigma,       // Covariance matrix
+        const Matrix& u,          // Unit vector
+        Real targetReturn,        // Target portfolio return
+        Real& optMu,             // Optimal return
+        Real& optSigmaSq        // Optimal variance
+    );
+};
+```
+
+### 2. Monthly Rebalancing
+- Systematic review on month-end dates
+- Transaction cost consideration
+- Position size limits
+- Minimum trade size filters
+
+### 3. Risk Management
+- Tracking error monitoring
+- Volatility constraints
+- Stress testing scenarios
+- Position limits enforcement
+
+## Performance Analytics
+
+### Key Metrics
+1. **Return Measures**
+   - Daily/Monthly returns
+   - Rolling window performance
+   - Risk-adjusted returns
+
+2. **Risk Metrics**
+   - Tracking error
+   - Portfolio volatility
+   - Information ratio
+   - Beta to benchmark
+
+3. **Cost Analysis**
+   - Transaction costs
+   - Market impact
+   - Portfolio turnover
+   - Implementation shortfall
 
 ## Dependencies
 - **QuantLib**: Financial mathematics and modeling
@@ -39,7 +122,8 @@ Tracking-Error-and-Portfolio-Optimization-master/
 - **C++11 or higher**
 
 ## Installation
-1. Install required dependencies:
+
+### Prerequisites
 ```bash
 # Ubuntu/Debian
 sudo apt-get install libquantlib0-dev libeigen3-dev libboost-all-dev
@@ -48,82 +132,47 @@ sudo apt-get install libquantlib0-dev libeigen3-dev libboost-all-dev
 brew install quantlib eigen boost
 ```
 
-2. Clone the repository:
+### Build Process
 ```bash
 git clone https://github.com/yourusername/Tracking-Error-and-Portfolio-Optimization.git
 cd Tracking-Error-and-Portfolio-Optimization
-```
-
-3. Build the project:
-```bash
 mkdir build && cd build
 cmake ..
 make
 ```
 
 ## Usage
-1. Prepare your input data in CSV format (see Data Format section)
-2. Run the optimization:
+
+### Basic Execution
 ```bash
 ./portfolio_optimizer path/to/data.csv
 ```
 
-## Data Format
-The project expects historical price data in CSV format with the following structure:
-
-```csv
-Dates,MSFT,F,BGS,ADRD,V,MGI,NFLX,JACK,GE,SBUX,C,HD,SPY
-6/29/2018,-0.000202,-0.018617,-0.055292,0.008062,-0.002184,0.009049,-0.010090,-0.016522,-0.015907,0.006386,0.000598,-0.000563,0.005717
-...
-```
-
-- First column: Dates
-- Middle columns: Daily returns for 12 stocks
-- Last column: SPY (benchmark) returns
-
-## Key Components
-
-### 1. Portfolio Optimizer
-- Implements tracking error minimization
-- Calculates efficient frontier
-- Optimizes portfolio weights
-
-### 2. Transaction Cost Model
-- Models trading costs including:
-  - Fixed commissions
-  - Variable commissions
-  - Market impact
-  - Slippage
-
-### 3. Portfolio Rebalancer
-- Monthly rebalancing logic
-- Transaction cost consideration
-- Trade execution modeling
-
-### 4. Risk Analysis
-- Tracking error calculation
-- Volatility metrics
-- Stress testing scenarios
+### Configuration Options
+- Rolling window size (default: 252 days)
+- Rebalancing frequency (default: monthly)
+- Transaction cost parameters
+- Risk limits and constraints
 
 ## Output Files
-The program generates several output files:
-- `portfolio_YYYY-MM-DD.csv`: Portfolio weights and metrics
-- `risk_report_YYYY-MM-DD.txt`: Risk analysis reports
-- `final_portfolio_analysis.csv`: Final optimization results
 
-## Performance Metrics
-- Daily/Monthly Returns
-- Portfolio Volatility
-- Tracking Error
-- Transaction Costs
-- Information Ratio
+### 1. Portfolio Analysis
+- `portfolio_YYYY-MM-DD.csv`: Monthly portfolio weights
+- `risk_report_YYYY-MM-DD.txt`: Risk analytics
+- `final_portfolio_analysis.csv`: Cumulative results
+
+### 2. Performance Reports
+- Portfolio weights
+- Risk metrics
+- Transaction costs
+- Tracking error analysis
 
 ## Contributing
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -134,5 +183,5 @@ Project Link: https://github.com/yourusername/Tracking-Error-and-Portfolio-Optim
 
 ## Acknowledgments
 - QuantLib Documentation
-- Modern Portfolio Theory
-- Transaction Cost Analysis Research
+- Modern Portfolio Theory research
+- Transaction Cost Analysis literature
