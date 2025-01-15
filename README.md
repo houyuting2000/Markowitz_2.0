@@ -34,12 +34,7 @@ Data Frequency: Daily returns
 - [x] Performance Analysis
 
 ### Data Processing
-graph LR
-    A[CSV Input] --> B[Data Loading]
-    B --> C[Returns Processing]
-    C --> D[Covariance Calculation]
-    D --> E[Optimization]
-    E --> F[Output Generation]
+[CSV Input] --> [Data Loading] --> [Returns Processing] --> [Covariance Calculation] --> [Optimization] --> [Output Generation]
 
 ## Architecture
 
