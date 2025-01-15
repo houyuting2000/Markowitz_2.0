@@ -16,8 +16,11 @@ A quantitative portfolio optimization system implementing both Markowitz Modern 
 
 ### Key Statistics
 Time Period: 4/1/2015 - 6/1/2018
+
 Trading Days: 847
+
 Assets: 12 stocks + SPY benchmark
+
 Data Frequency: Daily returns
 
 ## Features
