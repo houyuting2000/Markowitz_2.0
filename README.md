@@ -181,6 +181,7 @@ Cost Model Implementation
 
 ## Usage Examples
 
+```
 1. Basic Portfolio Optimization
    EnhancedPortfolioOptimizer optimizer("data.csv");
    optimizer.optimizePortfolio();
@@ -190,7 +191,7 @@ Cost Model Implementation
    optimizer.setRiskConstraints(limits);
    optimizer.optimizePortfolio();
    optimizer.generateRiskReport("risk_report.txt");
-
+```
 ## Performance Considerations
 
 ### Critical Operations
