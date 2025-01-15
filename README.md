@@ -34,7 +34,7 @@ The system implements a comprehensive portfolio optimization framework with the 
 
 // Primary Class Structure
 EnhancedPortfolioOptimizer
-├── RiskMetrics           // Risk calculation engine
+├── RiskMetrics           / Risk calculation engine
 ├── RiskConstraints       // Constraint management system
 ├── TransactionCostModel  // Cost optimization framework
 └── CSVParser            // Data handling subsystem
