@@ -12,7 +12,7 @@
 
 ### Overview
 weight.cpp serves as the main implementation file, orchestrating the entire portfolio optimization system:
-
+```
 Project Structure
 ├── weight.cpp                    # Main implementation file
 ├── Core Components
@@ -25,7 +25,7 @@ Project Structure
 │   └── MatrixOperations.hpp     # Mathematical operations
 └── Testing
     └── unit_tests.cpp           # Test suite
-
+```
 ## Main Implementation (weight.cpp)
 
 ### Class Structure
