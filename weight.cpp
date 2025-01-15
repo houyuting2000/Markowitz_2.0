@@ -14,6 +14,7 @@
 #include <memory>
 #include <stdexcept>
 #include <sstream>
+#include <chrono>
 
 using namespace QuantLib;
 using namespace std;
@@ -27,7 +28,8 @@ private:
     static const int FIRST_ASSET_COLUMN = 2;
     static const int BENCHMARK_COLUMN = 14;
     static const int TRADING_DAYS_PER_YEAR = 252;
-    static const int TRADING_DAYS_PER_MONTH = 22;
+    static const int TRADING_DAYS_PER_MONTH = 21;
+    static const double RISK_FREE_RATE = 0.02;  // 2% annual risk-free rate
 
     // Core data structures
     Matrix returns_;
@@ -37,9 +39,11 @@ private:
     Matrix teWeights_;
     Matrix mptWeights_;
     Matrix currentWeights_;
-    Real benchmarkReturn_;
+    Matrix historicalWeights_;
+    vector<double> benchmarkReturns_;
     vector<tuple<Real, Real, Real>> efficientFrontierPoints_;
     vector<string> dates_;
+    vector<string> assetNames_;
     int windowSize_;
 
     // Risk management components
@@ -58,8 +62,15 @@ private:
     Real dailyVol_;
     Real monthlyVol_;
     Real trackingError_;
+    vector<double> historicalReturns_;
+    vector<double> historicalVolatility_;
+    vector<double> historicalTrackingError_;
 
-    // Helper methods
+    // File handling
+    string dataFilePath_;
+    string outputDirectory_;
+
+    // Core optimization methods
     Matrix calculateMarkowitzWeights(
         const Matrix& mu, 
         const Matrix& sigma, 
@@ -98,10 +109,15 @@ private:
             monthlyReturn_ = pow(1 + dailyReturn_, TRADING_DAYS_PER_MONTH) - 1;
             monthlyVol_ = dailyVol_ * sqrt(TRADING_DAYS_PER_MONTH);
 
+            // Store historical metrics
+            historicalReturns_.push_back(dailyReturn_);
+            historicalVolatility_.push_back(dailyVol_);
+            historicalTrackingError_.push_back(trackingError_);
+
             // Calculate comprehensive risk metrics
-            Matrix benchmarkReturns(NUM_PERIODS, 1);
-            for (int i = 0; i < NUM_PERIODS; i++) {
-                benchmarkReturns[i][0] = stod(CSVParser::getField(i, BENCHMARK_COLUMN));
+            Matrix benchmarkMatrix(NUM_PERIODS, 1);
+            for (size_t i = 0; i < benchmarkReturns_.size(); ++i) {
+                benchmarkMatrix[i][0] = benchmarkReturns_[i];
             }
 
             currentRisk_ = riskMetrics_->calculateRiskMetrics(
@@ -110,7 +126,8 @@ private:
                 covariance_,
                 excessReturns_,
                 excessCovariance_,
-                benchmarkReturns
+                benchmarkMatrix,
+                RISK_FREE_RATE
             );
         }
         catch (const exception& e) {
@@ -118,24 +135,7 @@ private:
         }
     }
 
-    vector<string> extractDates(const string& filename) {
-        try {
-            Parser portfolio(filename);
-            vector<string> dates;
-            for (int i = 0; i < NUM_PERIODS; i++) {
-                dates.push_back(portfolio[i][DATE_COLUMN]);
-            }
-            return dates;
-        }
-        catch (const exception& e) {
-            throw runtime_error("Error extracting dates: " + string(e.what()));
-        }
-    }
-
-    void updateCovariances(
-        const Matrix& windowReturns, 
-        const Matrix& windowExcessReturns) {
-        
+    void updateCovariances(const Matrix& windowReturns, const Matrix& windowExcessReturns) {
         try {
             SequenceStatistics ss, ssd;
             for (int i = 0; i < windowReturns.rows(); i++) {
@@ -156,7 +156,6 @@ private:
     }
 
     void initializeSectorMap() {
-        // Initialize sector mappings for risk constraints
         sectorMap_ = {
             {0, "Technology"},
             {1, "Automotive"},
@@ -196,9 +195,26 @@ private:
         }
     }
 
+    void initializeAssetNames() {
+        assetNames_ = {
+            "MSFT",  // Microsoft
+            "F",     // Ford
+            "BGS",   // B&G Foods
+            "ADRD",  // BLDRS Developed Markets
+            "V",     // Visa
+            "MGI",   // MoneyGram
+            "NFLX",  // Netflix
+            "JACK",  // Jack in the Box
+            "GE",    // General Electric
+            "SBUX",  // Starbucks
+            "C",     // Citigroup
+            "HD"     // Home Depot
+        };
+    }
+
 public:
     EnhancedPortfolioOptimizer(const string& filename, int windowSize = 252) 
-        : windowSize_(windowSize) {
+        : windowSize_(windowSize), dataFilePath_(filename) {
         try {
             // Initialize risk management components
             riskMetrics_ = make_unique<RiskMetrics>(TRADING_DAYS_PER_YEAR);
@@ -213,9 +229,10 @@ public:
             
             riskConstraints_ = make_unique<RiskConstraints>(limits);
 
-            // Initialize sector map and ADV data
+            // Initialize data structures
             initializeSectorMap();
             initializeADV();
+            initializeAssetNames();
 
             // Load data and initialize portfolio
             loadData(filename);
@@ -231,29 +248,48 @@ public:
 
             // Initialize current weights to equal weight
             currentWeights_ = Matrix(NUM_ASSETS, 1, 1.0/NUM_ASSETS);
+            
+            // Create output directory if it doesn't exist
+            outputDirectory_ = "output/";
+            system(("mkdir -p " + outputDirectory_).c_str());
         }
         catch (const exception& e) {
             throw runtime_error("Error in constructor: " + string(e.what()));
         }
     }
 
-
     void loadData(const string& filename) {
         try {
             Parser portfolio(filename);
             returns_ = Matrix(NUM_PERIODS, NUM_ASSETS);
             excessReturns_ = Matrix(NUM_PERIODS, NUM_ASSETS);
+            benchmarkReturns_.resize(NUM_PERIODS);
             
             for (int i = 0; i < NUM_PERIODS; i++) {
-                double benchmarkReturn = stod(portfolio[i][BENCHMARK_COLUMN]);
+                benchmarkReturns_[i] = stod(portfolio[i][BENCHMARK_COLUMN]);
                 for (int j = 0; j < NUM_ASSETS; j++) {
                     returns_[i][j] = stod(portfolio[i][j + FIRST_ASSET_COLUMN]);
-                    excessReturns_[i][j] = returns_[i][j] - benchmarkReturn;
+                    excessReturns_[i][j] = returns_[i][j] - benchmarkReturns_[i];
                 }
             }
         }
         catch (const exception& e) {
             throw runtime_error("Error loading data: " + string(e.what()));
+        }
+    }
+
+    vector<string> extractDates(const string& filename) {
+        try {
+            Parser portfolio(filename);
+            vector<string> dates;
+            dates.reserve(NUM_PERIODS);
+            for (int i = 0; i < NUM_PERIODS; i++) {
+                dates.push_back(portfolio[i][DATE_COLUMN]);
+            }
+            return dates;
+        }
+        catch (const exception& e) {
+            throw runtime_error("Error extracting dates: " + string(e.what()));
         }
     }
 
@@ -274,7 +310,7 @@ public:
             // Apply risk constraints
             Matrix benchmarkReturns(NUM_PERIODS, 1);
             for (int i = 0; i < NUM_PERIODS; i++) {
-                benchmarkReturns[i][0] = stod(CSVParser::getField(i, BENCHMARK_COLUMN));
+                benchmarkReturns[i][0] = benchmarkReturns_[i];
             }
             
             teWeights_ = riskConstraints_->enforceConstraints(
@@ -289,6 +325,9 @@ public:
             
             // Calculate performance metrics
             calculatePerformanceMetrics();
+            
+            // Store historical weights
+            historicalWeights_ = teWeights_;
         }
         catch (const exception& e) {
             throw runtime_error("Error in optimizePortfolio: " + string(e.what()));
@@ -359,10 +398,103 @@ public:
         }
     }
 
-    // Reporting and analysis methods
+    void exportResultsToCSV(const string& filename) {
+        try {
+            ofstream csvFile(outputDirectory_ + filename);
+            
+            // Write header
+            csvFile << "Date,";
+            for (const auto& name : assetNames_) {
+                csvFile << name << "_Weight,";
+            }
+            csvFile << "Daily_Return,Monthly_Return,Daily_Vol,Monthly_Vol,Tracking_Error,"
+                   << "Information_Ratio,Sharpe_Ratio,Beta,Alpha,Max_Drawdown,"
+                   << "Total_Long,Total_Short,Net_Exposure,Gross_Exposure,"
+                   << "Estimated_Trading_Cost\n";
+
+            // Write current portfolio data
+            csvFile << fixed << setprecision(6);
+            
+            // Date
+            csvFile << dates_.back() << ",";
+            
+            // Portfolio weights
+            for (int i = 0; i < NUM_ASSETS; i++) {
+                csvFile << teWeights_[i][0] << ",";
+            }
+            
+            // Risk metrics
+            csvFile << dailyReturn_ << ","
+                   << monthlyReturn_ << ","
+                   << dailyVol_ << ","
+                   << monthlyVol_ << ","
+                   << currentRisk_.trackingError << ","
+                   << currentRisk_.informationRatio << ","
+                   << currentRisk_.sharpeRatio << ","
+                   << currentRisk_.beta << ","
+                   << currentRisk_.alpha << ","
+                   << currentRisk_.maxDrawdown << ",";
+
+            // Calculate exposures
+            double totalLong = 0.0, totalShort = 0.0;
+            for (int i = 0; i < NUM_ASSETS; i++) {
+                if (teWeights_[i][0] > 0) totalLong += teWeights_[i][0];
+                else totalShort += abs(teWeights_[i][0]);
+            }
+            double netExposure = totalLong - totalShort;
+            double grossExposure = totalLong + totalShort;
+
+            csvFile << totalLong << ","
+                   << totalShort << ","
+                   << netExposure << ","
+                   << grossExposure << ",";
+
+            // Trading costs
+            double tradingCost = costModel_.calculateTotalCosts(
+                teWeights_,
+                currentWeights_,
+                averageDailyVolume_
+            );
+            csvFile << tradingCost << "\n";
+
+            csvFile.close();
+
+            // Export historical data if available
+            if (!historicalReturns_.empty()) {
+                exportHistoricalDataToCSV(filename.substr(0, filename.find(".csv")) + "_historical.csv");
+            }
+        }
+        catch (const exception& e) {
+            throw runtime_error("Error exporting results to CSV: " + string(e.what()));
+        }
+    }
+
+    void exportHistoricalDataToCSV(const string& filename) {
+        try {
+            ofstream csvFile(outputDirectory_ + filename);
+            
+            // Write header
+            csvFile << "Date,Daily_Return,Daily_Vol,Tracking_Error\n";
+            
+            // Write historical data
+            csvFile << fixed << setprecision(6);
+            for (size_t i = 0; i < historicalReturns_.size(); ++i) {
+                csvFile << dates_[i] << ","
+                       << historicalReturns_[i] << ","
+                       << historicalVolatility_[i] << ","
+                       << historicalTrackingError_[i] << "\n";
+            }
+            
+            csvFile.close();
+        }
+        catch (const exception& e) {
+            throw runtime_error("Error exporting historical data to CSV: " + string(e.what()));
+        }
+    }
+
     void generateRiskReport(const string& filename) {
         try {
-            ofstream report(filename);
+            ofstream report(outputDirectory_ + filename);
             report << fixed << setprecision(4);
             
             // Portfolio summary
@@ -386,8 +518,8 @@ public:
             // Position analysis
             report << "Position Analysis:\n";
             report << "-----------------\n";
-            for (int i = 0; i < NUM_ASSETS; i++) {
-                report << "Asset " << i + 1 << ": " << teWeights_[i][0] * 100 << "%\n";
+            for (size_t i = 0; i < assetNames_.size(); i++) {
+                report << assetNames_[i] << ": " << teWeights_[i][0] * 100 << "%\n";
             }
             report << "\n";
             
@@ -403,24 +535,15 @@ public:
             }
             report << "\n";
             
-            // Risk constraints status
-            report << "Risk Constraints Status:\n";
-            report << "----------------------\n";
-            auto constraintStatus = riskConstraints_->getActiveViolations();
-            if (constraintStatus.empty()) {
-                report << "All constraints satisfied\n";
-            } else {
-                for (const auto& violation : constraintStatus) {
-                    report << "Violation: " << violation << "\n";
-                }
-            }
-            report << "\n";
-            
             // Transaction cost analysis
             report << "Transaction Cost Analysis:\n";
             report << "------------------------\n";
-            auto costs = costModel_.calculateTotalCosts(teWeights_, currentWeights_, averageDailyVolume_);
-            report << "Estimated Trading Costs: " << costs * 100 << " bps\n\n";
+            double tradingCost = costModel_.calculateTotalCosts(
+                teWeights_,
+                currentWeights_,
+                averageDailyVolume_
+            );
+            report << "Estimated Trading Costs: " << tradingCost * 10000 << " bps\n\n";
             
             report.close();
         }
@@ -429,25 +552,13 @@ public:
         }
     }
 
-    // Getter methods for portfolio analysis
+    // Getter methods
     Matrix getOptimizedWeights() const { return teWeights_; }
     Matrix getCurrentWeights() const { return currentWeights_; }
     RiskMetrics::PortfolioRisk getCurrentRisk() const { return currentRisk_; }
     vector<tuple<Real, Real, Real>> getEfficientFrontier() const { return efficientFrontierPoints_; }
-    
-    // Portfolio update method
-    void updatePortfolio(const Matrix& newWeights) {
-        try {
-            currentWeights_ = newWeights;
-            optimizePortfolio();
-        }
-        catch (const exception& e) {
-            throw runtime_error("Error updating portfolio: " + string(e.what()));
-        }
-    }
 };
 
-// Main function
 int main(int argc, char* argv[]) {
     try {
         if (argc != 2) {
@@ -455,29 +566,32 @@ int main(int argc, char* argv[]) {
             return 1;
         }
 
+        // Record start time
+        auto start = chrono::high_resolution_clock::now();
+
         string filename = argv[1];
         EnhancedPortfolioOptimizer optimizer(filename);
         
-        // Perform initial optimization
+        // Perform optimization
         optimizer.optimizePortfolio();
         
-        // Generate risk report
+        // Generate reports
         optimizer.generateRiskReport("portfolio_risk_report.txt");
+        optimizer.exportResultsToCSV("portfolio_results.csv");
         
-        // Output optimized weights
-        Matrix optimizedWeights = optimizer.getOptimizedWeights();
-        cout << "\nOptimized Portfolio Weights:\n";
-        for (int i = 0; i < optimizedWeights.rows(); i++) {
-            cout << "Asset " << i + 1 << ": " << fixed << setprecision(4) 
-                 << optimizedWeights[i][0] * 100 << "%\n";
-        }
-        
-        // Output key risk metrics
+        // Output summary to console
         auto risk = optimizer.getCurrentRisk();
-        cout << "\nKey Risk Metrics:\n";
+        cout << "\nOptimization Complete\n";
+        cout << "====================\n";
+        cout << fixed << setprecision(4);
         cout << "Tracking Error: " << risk.trackingError * 100 << "%\n";
         cout << "Information Ratio: " << risk.informationRatio << "\n";
         cout << "Sharpe Ratio: " << risk.sharpeRatio << "\n";
+        
+        // Record end time and calculate duration
+        auto end = chrono::high_resolution_clock::now();
+        auto duration = chrono::duration_cast<chrono::milliseconds>(end - start);
+        cout << "\nExecution time: " << duration.count() / 1000.0 << " seconds\n";
         
         return 0;
     }
