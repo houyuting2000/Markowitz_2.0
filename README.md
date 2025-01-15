@@ -1,138 +1,101 @@
-# Portfolio Optimization with Tracking Error and Monthly Rebalancing
+# Portfolio Optimization with Tracking Error
 
-## Project Overview
-This project implements a sophisticated portfolio optimization strategy that combines tracking error minimization with systematic monthly rebalancing. Built in C++ with QuantLib integration, it provides a robust framework for institutional-grade portfolio management.
+## Overview
+This project implements a sophisticated portfolio optimization system that focuses on minimizing tracking error while maintaining desired risk-return characteristics. Built in C++, it provides a comprehensive framework for institutional-grade portfolio management with risk constraints and transaction cost considerations.
+
+## Table of Contents
+- [Architecture](#architecture)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+- [API Documentation](#api-documentation)
+- [Performance Metrics](#performance-metrics)
+- [Examples](#examples)
 
 ## Architecture
 
-### Core Components
+### Project Structure
 ```
 Tracking-Error-and-Portfolio-Optimization-master/
 ├── src/
 │   ├── PortfolioOptimizer.hpp/cpp     # Core optimization engine
-│   ├── PortfolioRebalancer.hpp/cpp    # Rebalancing logic
-│   ├── TransactionCostModel.hpp/cpp   # Transaction cost analysis
-│   ├── StressTesting.hpp             # Risk scenario analysis
-│   ├── RiskReporter.hpp              # Performance reporting
-│   └── weight.cpp                    # Main execution file
+│   ├── RiskMetrics.hpp/cpp            # Risk calculations
+│   ├── RiskConstraints.hpp/cpp        # Portfolio constraints
+│   ├── TransactionCostModel.hpp/cpp   # Trading cost analysis
+│   ├── CSVParser.hpp                  # Data handling
+│   └── weight.cpp                     # Main execution
 ├── data/
-│   └── 12-stock portfolio.csv        # Historical price data
-└── README.md
+│   └── portfolio_data.csv             # Historical price data
+├── tests/
+│   └── unit_tests.cpp                 # Test suite
+└── docs/
+    └── api_documentation.md           # API documentation
 ```
 
-### Component Interactions
-1. **PortfolioOptimizer**
-   - Implements tracking error minimization
-   - Calculates efficient frontier
-   - Manages rolling window calculations
-   - Interfaces with QuantLib for matrix operations
+### Core Components
 
-2. **PortfolioRebalancer**
-   - Handles monthly rebalancing decisions
-   - Integrates with TransactionCostModel
-   - Maintains position tracking
-   - Implements rebalancing thresholds
+1. **Portfolio Optimizer**
+   - Implements Markowitz optimization
+   - Tracking error minimization
+   - Portfolio rebalancing logic
+   - Integration with risk constraints
 
-3. **TransactionCostModel**
-   - Models trading costs with multiple components:
-     ```cpp
-     struct Costs {
-         double fixedCommission;      // Fixed fee per trade
-         double variableCommission;   // Percentage-based fee
-         double slippageModel;        // Price impact
-         double marketImpact;         // Market depth impact
-     };
-     ```
+2. **Risk Metrics System**
+   ```cpp
+   struct PortfolioRisk {
+       double dailyVol;
+       double monthlyVol;
+       double trackingError;
+       double informationRatio;
+       double sharpeRatio;
+       double maxDrawdown;
+       double beta;
+       double alpha;
+   };
+   ```
 
-## Data Structure
+3. **Risk Constraints Framework**
+   ```cpp
+   struct ConstraintLimits {
+       double maxPositionSize;      // 20% max position
+       double minPositionSize;      // -10% min position
+       double maxSectorExposure;    // 30% sector limit
+       double maxVolatility;        // 15% volatility cap
+       double maxTrackingError;     // 5% tracking error limit
+       double maxTurnover;          // 20% monthly turnover
+   };
+   ```
 
-### Input Data Format
-The system uses a CSV file with the following structure:
-```csv
-Dates,MSFT,F,BGS,ADRD,V,MGI,NFLX,JACK,GE,SBUX,C,HD,SPY
-6/29/2018,-0.000202,-0.018617,...,0.005717
-```
-- First column: Trading dates
-- Columns 2-13: Daily returns for 12 stocks
-- Last column: SPY (benchmark) returns
+## Features
 
-### Key Data Processing
-1. **Return Calculations**
-   - Daily returns processing
-   - Rolling window statistics
-   - Excess return computation
-
-2. **Covariance Estimation**
-   - Rolling covariance matrix
-   - Exponential weighting
-   - Regularization techniques
-
-## Optimization Process
-
-### 1. Initial Portfolio Construction
-```cpp
-class PortfolioOptimizer {
-    Matrix calculateMarkowitzWeights(
-        const Matrix& mu,          // Expected returns
-        const Matrix& sigma,       // Covariance matrix
-        const Matrix& u,          // Unit vector
-        Real targetReturn,        // Target portfolio return
-        Real& optMu,             // Optimal return
-        Real& optSigmaSq        // Optimal variance
-    );
-};
-```
-
-### 2. Monthly Rebalancing
-- Systematic review on month-end dates
+### 1. Portfolio Optimization
+- Tracking error minimization
+- Efficient frontier calculation
+- Risk-adjusted return optimization
 - Transaction cost consideration
-- Position size limits
-- Minimum trade size filters
 
-### 3. Risk Management
-- Tracking error monitoring
-- Volatility constraints
-- Stress testing scenarios
-- Position limits enforcement
+### 2. Risk Management
+- Comprehensive risk metrics calculation
+- Position and sector limits
+- Volatility targeting
+- Beta neutrality options
 
-## Performance Analytics
-
-### Key Metrics
-1. **Return Measures**
-   - Daily/Monthly returns
-   - Rolling window performance
-   - Risk-adjusted returns
-
-2. **Risk Metrics**
-   - Tracking error
-   - Portfolio volatility
-   - Information ratio
-   - Beta to benchmark
-
-3. **Cost Analysis**
-   - Transaction costs
-   - Market impact
-   - Portfolio turnover
-   - Implementation shortfall
-
-## Dependencies
-- **QuantLib**: Financial mathematics and modeling
-- **Eigen**: Linear algebra operations
-- **Boost**: Additional C++ utilities
-- **C++11 or higher**
+### 3. Transaction Cost Analysis
+- Fixed commission modeling
+- Variable commission rates
+- Market impact estimation
+- Liquidity constraints
 
 ## Installation
 
 ### Prerequisites
-```bash
-# Ubuntu/Debian
-sudo apt-get install libquantlib0-dev libeigen3-dev libboost-all-dev
+- C++17 or higher
+- CMake 3.10+
+- QuantLib
+- Eigen3
+- Boost
 
-# macOS
-brew install quantlib eigen boost
-```
-
-### Build Process
+### Build Instructions
 ```bash
 git clone https://github.com/yourusername/Tracking-Error-and-Portfolio-Optimization.git
 cd Tracking-Error-and-Portfolio-Optimization
@@ -143,36 +106,127 @@ make
 
 ## Usage
 
-### Basic Execution
-```bash
-./portfolio_optimizer path/to/data.csv
+### Basic Example
+```cpp
+#include "PortfolioOptimizer.hpp"
+
+int main() {
+    // Initialize optimizer
+    EnhancedPortfolioOptimizer optimizer("portfolio_data.csv");
+    
+    // Set risk constraints
+    RiskConstraints::ConstraintLimits limits;
+    limits.maxPositionSize = 0.15;    // 15% max position
+    limits.maxSectorExposure = 0.25;  // 25% sector limit
+    
+    // Optimize portfolio
+    optimizer.optimizePortfolio();
+    
+    // Generate risk report
+    optimizer.generateRiskReport("risk_report.txt");
+    
+    return 0;
+}
 ```
 
-### Configuration Options
-- Rolling window size (default: 252 days)
-- Rebalancing frequency (default: monthly)
-- Transaction cost parameters
-- Risk limits and constraints
+### Data Format
+The system expects CSV data in the following format:
+```csv
+Date,Asset1,Asset2,Asset3,...,AssetN,Benchmark
+2023-01-01,0.0012,0.0034,-0.0015,...,0.0023,0.0018
+```
 
-## Output Files
+## API Documentation
 
-### 1. Portfolio Analysis
-- `portfolio_YYYY-MM-DD.csv`: Monthly portfolio weights
-- `risk_report_YYYY-MM-DD.txt`: Risk analytics
-- `final_portfolio_analysis.csv`: Cumulative results
+### EnhancedPortfolioOptimizer
+```cpp
+class EnhancedPortfolioOptimizer {
+public:
+    // Constructor
+    EnhancedPortfolioOptimizer(const string& filename, int windowSize = 252);
+    
+    // Core methods
+    void optimizePortfolio();
+    void generateRiskReport(const string& filename);
+    
+    // Getters
+    Matrix getOptimizedWeights() const;
+    RiskMetrics::PortfolioRisk getCurrentRisk() const;
+};
+```
 
-### 2. Performance Reports
-- Portfolio weights
-- Risk metrics
-- Transaction costs
-- Tracking error analysis
+### RiskMetrics
+```cpp
+class RiskMetrics {
+public:
+    // Risk calculation methods
+    PortfolioRisk calculateRiskMetrics(const Matrix& weights, ...);
+    double calculateTrackingError(const Matrix& weights, ...);
+    double calculateVolatility(const Matrix& weights, ...);
+};
+```
+
+## Performance Metrics
+
+### Risk Measures
+- Daily/Monthly Volatility
+- Tracking Error
+- Information Ratio
+- Sharpe Ratio
+- Maximum Drawdown
+- Beta/Alpha
+
+### Transaction Costs
+- Commission Rates
+- Market Impact
+- Slippage
+- Total Trading Costs
+
+## Examples
+
+### 1. Basic Portfolio Optimization
+```cpp
+// Initialize optimizer
+EnhancedPortfolioOptimizer optimizer("data.csv");
+
+// Optimize portfolio
+optimizer.optimizePortfolio();
+
+// Get optimized weights
+Matrix weights = optimizer.getOptimizedWeights();
+```
+
+### 2. Risk-Constrained Optimization
+```cpp
+// Set risk constraints
+RiskConstraints::ConstraintLimits limits;
+limits.maxPositionSize = 0.15;
+limits.maxVolatility = 0.20;
+limits.maxTrackingError = 0.06;
+
+// Apply constraints and optimize
+optimizer.setRiskConstraints(limits);
+optimizer.optimizePortfolio();
+```
+
+### 3. Transaction Cost Analysis
+```cpp
+// Set transaction cost parameters
+TransactionCostModel::Costs costs;
+costs.fixedCommission = 0.0001;    // 1 bp
+costs.marketImpact = 0.1;          // Impact coefficient
+
+// Optimize with transaction costs
+optimizer.setCostModel(costs);
+optimizer.optimizePortfolio();
+```
 
 ## Contributing
 1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## License
 This project is licensed under the MIT License - see the LICENSE file for details.
@@ -180,8 +234,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Contact
 Your Name - your.email@example.com
 Project Link: https://github.com/yourusername/Tracking-Error-and-Portfolio-Optimization
-
-## Acknowledgments
-- QuantLib Documentation
-- Modern Portfolio Theory research
-- Transaction Cost Analysis literature
