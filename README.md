@@ -250,11 +250,13 @@ make
 ## Testing Framework
 
 ### Component Testing
+'''
 class TestFramework {
     void testOptimization();
     void validateRiskMetrics();
     void benchmarkPerformance();
 };
+'''
 
 ## Contributing
 Please read CONTRIBUTING.md for details on our code of conduct and the process for submitting pull requests.
