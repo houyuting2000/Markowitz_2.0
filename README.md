@@ -67,7 +67,7 @@ PortfolioOptimizer
     └── DataExporter
 
 #### Key Classes
-
+```
 class MarkowitzOptimizer {
     Matrix calculateOptimalWeights();
     void minimizeTrackingError();
@@ -79,7 +79,7 @@ class TrackingErrorMinimizer {
     Matrix optimizeWeights();
     void validateSolution();
 };
-
+```
 ### 2. Risk Management Component
 
 RiskManagement
@@ -96,7 +96,7 @@ RiskManagement
     └── AlertGenerator
 
 #### Implementation
-
+```
 class RiskMetrics {
     struct PortfolioRisk {
         double dailyVol;          // Daily volatility metric
@@ -113,7 +113,7 @@ class RiskMetrics {
     void monitorRiskLimits();
     void generateAlerts();
 };
-
+```
 ### 3. Transaction Cost Component
 
 TransactionCost
@@ -129,7 +129,7 @@ TransactionCost
     └── EfficiencyCalculator
 
 #### Core Structure
-
+```
 class TransactionCostModel {
     struct TradingCosts {
         double fixedCosts;        // Base commission
@@ -142,7 +142,7 @@ class TransactionCostModel {
     void optimizeTrades();
     double calculateTotalCost();
 };
-
+```
 ## Integration Framework
 
 ### Component Integration
@@ -161,6 +161,7 @@ System Integration
     └── StateManagement
 
 ### Inter-Component Communication
+```
 class DataBridge {
     void passOptimizationResults();
     void updateRiskMetrics();
@@ -172,7 +173,7 @@ class EventManager {
     void processRiskAlert();
     void manageTradingEvent();
 };
-
+```
 ## Data Flow Architecture
 
 ### Data Pipeline
@@ -192,16 +193,17 @@ Data Flow
     └── Analytics
 
 ### State Management
+```
 class StateManager {
     void updatePortfolioState();
     void trackOptimizationState();
     void maintainSystemState();
 };
-
+```
 ## Implementation Details
 
 ### Core Algorithms
-
+```
 class OptimizationEngine {
     Matrix calculateMarkowitzWeights(
         const Matrix& mu,          // Expected returns
@@ -219,10 +221,13 @@ class RiskEngine {
     void validateConstraints();
     void generateAlerts();
 };
+```
 
 ## Performance Considerations
 
 ### Critical Paths
+
+```
 class MatrixOptimizer {
     void optimizeCovariance();
     void efficientInversion();
@@ -234,6 +239,7 @@ class DataProcessor {
     void batchOptimization();
     void asyncReporting();
 };
+```
 
 ## Build and Deployment
 
